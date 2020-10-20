@@ -365,8 +365,9 @@ def layer_norm(input_tensor, name=None):
   #return tf.contrib.layers.layer_norm(
   #return tf.keras.layers.LayerNormalization(
       #inputs=input_tensor, begin_norm_axis=-1, begin_params_axis=-1, scope=name)
-  layer_normm = tf.keras.layers.LayerNormalization(axis = -1)
-  return layer_normm(input_tensor)
+  #layer_normm = tf.keras.layers.LayerNormalization(axis = -1)
+  #return layer_normm(input_tensor)
+  return tf.keras.layers.LayerNormalization(name=name,axis=-1,epsilon=1e-12,dtype=tf.float32)(input_tensor)
 
 
 def layer_norm_and_dropout(input_tensor, dropout_prob, name=None):
