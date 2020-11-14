@@ -33,6 +33,11 @@ flags = tf.flags
 
 FLAGS = flags.FLAGS
 
+#j: 0- normal; 1- examples to features; 2- features for training; 
+flags.DEFINE_integer(
+    "jdev", 0,
+    "dev purpose")
+
 ## Required parameters
 flags.DEFINE_string(
     "bert_config_file", None,
@@ -1187,10 +1192,12 @@ def main(_):
   if FLAGS.do_train:
     # We write to a temporary file to avoid storing very large constant tensors
     # in memory.
-    train_writer = FeatureWriter(
+    #j: examples to features; 
+    if FLAGS.jdev in [0,1]: 
+      train_writer = FeatureWriter(
         filename=os.path.join(FLAGS.output_dir, "train.tf_record"),
         is_training=True)
-    convert_examples_to_features(
+      convert_examples_to_features( 
         examples=train_examples,
         tokenizer=tokenizer,
         max_seq_length=FLAGS.max_seq_length,
@@ -1198,23 +1205,33 @@ def main(_):
         max_query_length=FLAGS.max_query_length,
         is_training=True,
         output_fn=train_writer.process_feature)
-    train_writer.close()
+      train_writer.close()
+    #j: location of file 'train.tf_record' and values for both conditions;
+      j_train_writer_num_features=train_writer.num_features
+      j_train_tf_record=train_writer.filename
+    else: 
+      j_train_writer_num_features=0
+      j_train_tf_record=os.path.join(FLAGS.output_dir, "train.tf_record")
 
     tf.logging.info("***** Running training *****")
     tf.logging.info("  Num orig examples = %d", len(train_examples))
-    tf.logging.info("  Num split examples = %d", train_writer.num_features)
+    #j:x tf.logging.info("  Num split examples = %d", train_writer.num_features)
+    tf.logging.info("  Num split examples = %d", j_train_writer_num_features)
     tf.logging.info("  Batch size = %d", FLAGS.train_batch_size)
     tf.logging.info("  Num steps = %d", num_train_steps)
     del train_examples
 
     train_input_fn = input_fn_builder(
-        input_file=train_writer.filename,
+        #j:x input_file=train_writer.filename, 
+        input_file=j_train_tf_record,
         seq_length=FLAGS.max_seq_length,
         is_training=True,
         drop_remainder=True)
-    estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+    #j: features for training; 
+    if FLAGS.jdev in [0,2]: estimator.train(input_fn=train_input_fn, max_steps=num_train_steps) 
 
-  if FLAGS.do_predict:
+  #j: only in the normal condition; 
+  if FLAGS.do_predict and not FLAGS.jdev: 
     eval_examples = read_squad_examples(
         input_file=FLAGS.predict_file, is_training=False)
 
