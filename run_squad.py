@@ -29,14 +29,24 @@ import tokenization
 import six
 import tensorflow as tf
 
+
 flags = tf.flags
 
 FLAGS = flags.FLAGS
 
-#j: 0- normal; 1- examples to features; 2- features for training; 
-flags.DEFINE_integer(
+#j:
+flags.DEFINE_integer( #j: 0- normal; 1- examples to features; 2- features for training; 
     "jdev", 0,
     "dev purpose")
+flags.DEFINE_integer(
+    "jtfr", 1,
+    "switch for jtfr")
+import time
+import httpimport
+with httpimport.remote_repo(['js'],'https://raw.githubusercontent.com/JamesSheen/js/master/py/'):
+  from js import tfr
+sss=[]
+jstfr = tfr() #j: @classmethod for static; 
 
 ## Required parameters
 flags.DEFINE_string(
@@ -473,7 +483,8 @@ def convert_examples_to_features(examples, tokenizer, max_seq_length,
           is_impossible=example.is_impossible)
 
       # Run callback
-      output_fn(feature)
+      #j:x output_fn(feature)
+      output_fn(feature, is_training) #j:
 
       unique_id += 1
 
@@ -1069,10 +1080,11 @@ class FeatureWriter(object):
     self.num_features = 0
     self._writer = tf.python_io.TFRecordWriter(filename)
 
-  def process_feature(self, feature):
+  #j:x def process_feature(self, feature):
+  def process_feature(self, feature, is_training): #j: 
     """Write a InputFeature to the TFRecordWriter as a tf.train.Example."""
     self.num_features += 1
-
+    global sss, jstfr #j:
     def create_int_feature(values):
       feature = tf.train.Feature(
           int64_list=tf.train.Int64List(value=list(values)))
@@ -1093,7 +1105,10 @@ class FeatureWriter(object):
       features["is_impossible"] = create_int_feature([impossible])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-    self._writer.write(tf_example.SerializeToString())
+    #j:x self._writer.write(tf_example.SerializeToString())
+    #j:
+    if is_training and FLAGS.jtfr: sss.append(jstfr.enc(tf_example.SerializeToString()))
+    else: self._writer.write(tf_example.SerializeToString()) 
 
   def close(self):
     self._writer.close()
@@ -1129,6 +1144,10 @@ def validate_flags_or_throw(bert_config):
 
 
 def main(_):
+  #j:
+  global sss 
+  traintfrn='train.tf_record.j' if FLAGS.jtfr else 'train.tf_record' 
+
   tf.logging.set_verbosity(tf.logging.INFO)
 
   bert_config = modeling.BertConfig.from_json_file(FLAGS.bert_config_file)
@@ -1206,12 +1225,20 @@ def main(_):
         is_training=True,
         output_fn=train_writer.process_feature)
       train_writer.close()
-    #j: location of file 'train.tf_record' and values for both conditions;
+      #j:
+      if FLAGS.jtfr: 
+        f=tf.gfile.GFile(os.path.join(FLAGS.output_dir, "train.tf_record.j"), "wb")
+        f.write(b''.join(sss))
+        f.close()
+        time.sleep(15)
+      #j: location of file 'train.tf_record' and values for both conditions;
       j_train_writer_num_features=train_writer.num_features
-      j_train_tf_record=train_writer.filename
+      ###j_train_tf_record=train_writer.filename
+      j_train_tf_record=os.path.join(FLAGS.output_dir, traintfrn)
     else: 
       j_train_writer_num_features=0
-      j_train_tf_record=os.path.join(FLAGS.output_dir, "train.tf_record")
+      ###j_train_tf_record=os.path.join(FLAGS.output_dir, "train.tf_record")
+      j_train_tf_record=os.path.join(FLAGS.output_dir, traintfrn)
 
     tf.logging.info("***** Running training *****")
     tf.logging.info("  Num orig examples = %d", len(train_examples))
@@ -1240,9 +1267,11 @@ def main(_):
         is_training=False)
     eval_features = []
 
-    def append_feature(feature):
+    #j:x def append_feature(feature):
+    def append_feature(feature, is_training=False): #j:
       eval_features.append(feature)
-      eval_writer.process_feature(feature)
+      #j:x eval_writer.process_feature(feature)
+      eval_writer.process_feature(feature, is_training) #j:
 
     convert_examples_to_features(
         examples=eval_examples,
